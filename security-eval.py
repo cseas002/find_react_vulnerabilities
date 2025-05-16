@@ -170,7 +170,7 @@ class SecurityScanner:
             for vuln in vulns_sorted:
                 if sort_by == 'type' and vuln['severity'] != current_group:
                     current_group = vuln['severity']
-                    report.append(f"\n=================== {current_group.upper()} ===================")
+                    report.append(f"\n=== {current_group.upper()} ===")
                 report.append(
                     f"- {vuln['package']}@{vuln['version']} "
                     f"(CVE: {vuln['cve']})\n"
@@ -186,7 +186,7 @@ class SecurityScanner:
                 # Determine grouping key based on sort type
                 if sort_by == 'type':
                     group_key = pattern['pattern']
-                    item_text = f"   - File: {pattern['file']}\n  Context: {pattern['context']}"
+                    item_text = f"  - File: {pattern['file']}\n  Context: {pattern['context']}"
                 else:
                     group_key = pattern['file']
                     item_text = f"- {pattern['pattern']}\n  Context: {pattern['context']}"
