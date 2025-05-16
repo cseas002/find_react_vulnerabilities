@@ -9,7 +9,7 @@ positional arguments:
 
 options:
   -h, --help    show this help message and exit
-##security-eval
+## security-eval
 usage: security-eval.py [-h] [--sort-by {type,file}] [project_path]
 
 Security Auditor for React Projects
