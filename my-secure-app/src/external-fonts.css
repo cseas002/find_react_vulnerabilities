@@ -1,0 +1,13 @@
+@font-face {
+    font-family: 'RobotoTest';
+    src: url('https://fonts.gstatic.com/s/roboto/v27/KFOmCnqEu92Fr1Mu4mxK.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+}
+
+.external-font-text {
+    font-family: 'RobotoTest', sans-serif;
+    font-size: 18px;
+    color: purple;
+    margin-top: 10px;
+}
