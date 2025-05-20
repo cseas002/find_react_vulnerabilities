@@ -322,7 +322,7 @@ def generate_explanation_markdown(csp_config, explanations, project_path, inline
     markdown_lines.append("\n---")
     markdown_lines.append("### General Recommendations (for Production CSP):")
     markdown_lines.append("- **Test Thoroughly:** After applying this CSP, test your application extensively to ensure all functionalities work as expected.")
-    markdown_lines.append("- **Iterate:** CSP is often an iterative process. You might discover additional resources that need to be allowed as you test or add features.")
+    markdown_lines.append("- **Iterate:** CSP is often an iterative process. You might discover additional resources that need to be allowed as you test or add features. In that regard, take into consideration that you might need to run this program again.")
     markdown_lines.append("- **Principle of Least Privilege:** Only allow sources that are strictly necessary for your application to function.")
     markdown_lines.append("- **Avoid 'unsafe-inline' and 'unsafe-eval' in Production:** If these are present, investigate if they can be removed by refactoring code, using script hashes/nonces, or adjusting build configurations. These directives significantly weaken the security provided by CSP.")
     markdown_lines.append("- **Consider a `report-uri` or `report-to` directive:** This will instruct browsers to send reports of CSP violations to a specified endpoint, helping you identify and fix issues in a deployed application.")
