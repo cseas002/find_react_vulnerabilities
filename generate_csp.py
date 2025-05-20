@@ -120,14 +120,20 @@ def analyze_html_file(file_path, is_build_output=False):
 
 def analyze_js_jsx_ts_tsx_files(project_src_path):
     """
-    Analyzes JS/JSX/TS/TSX files in the src directory for patterns requiring 'unsafe-inline' for styles (e.g., style={{}}).
+    Analyzes JS/JSX/TS/TSX files in the src directory for patterns requiring 'unsafe-inline' for styles (e.g., style={{}} in JSX, which React renders as inline style attributes).
     Returns a set of file paths where such patterns were found.
     """
     jsx_inline_style_files = set()
-    # Regex to find style={{...}} in JSX, being careful about comments or strings.
-    # This is a simplified regex and might have false positives/negatives.
-    # A proper AST parser would be more robust.
-    jsx_style_prop_regex = re.compile(r"style=\{\{[^}]*\}\}")
+    # Regex to find style={{...}} in JSX. 
+    # This pattern indicates that React will generate an inline HTML 'style' attribute from the JSX object.
+    # Inline 'style' attributes on HTML elements require 'unsafe-inline' in the style-src CSP directive 
+    # for the styles to be applied by the browser.
+    # While 'unsafe-inline' for style-src doesn't permit direct JavaScript execution like it would for script-src,
+    # it can contribute to security risks such as data exfiltration (e.g., using CSS selectors on sensitive data
+    # and external url() calls) or UI redressing/phishing if an attacker can inject or manipulate these inline styles
+    # through another vulnerability (e.g., an XSS vulnerability that allows writing to style attributes).
+    # It's generally recommended to use CSS classes and external stylesheets, but style props are common in React.
+    jsx_style_prop_regex = re.compile(r"style=\{\{[^}]*\}\}") # Corrected regex: ensure no extra backslashes before final quote
 
     print(f"Analyzing JavaScript/TypeScript files in {colors.BLUE}{project_src_path}{colors.ENDC} for JSX inline styles...")
     file_extensions = ('*.js', '*.jsx', '*.ts', '*.tsx')
@@ -341,14 +347,15 @@ def generate_csp_for_cra(project_path):
             break # Found one, no need to check others
 
     if not build_dir_found_path:
-        warning_message = (
-            f"{colors.YELLOW}Warning:{colors.ENDC} Production build directory ('build/' or 'dist/') not found in '{colors.BLUE}{project_path}{colors.ENDC}'.\n"
-            f"For the most accurate Content Security Policy for a {colors.RED}production environment{colors.ENDC}, it's recommended to:\n"
-            f"  1. Create the production build (e.g., run {colors.RED}npm run build{colors.ENDC} or {colors.RED}yarn build{colors.ENDC}).\n"
-            f"  2. Run this script again targeting the project path.\n"
-            f"This script will now proceed by analyzing {colors.YELLOW}source files{colors.ENDC}, which is useful for development but may not capture all production build specifics.\n"
+        error_message = (
+            f"{colors.RED}Error:{colors.ENDC} Production build directory ('build/' or 'dist/') not found in '{colors.BLUE}{project_path}{colors.ENDC}'.\n"
+            f"This script requires the production build to generate an accurate Content Security Policy for production.\n"
+            f"Please create the production build for your project (e.g., by running {colors.GREEN}npm run build{colors.ENDC} or {colors.GREEN}yarn build{colors.ENDC}) \n"
+            f"and then re-run this script.\n"
+            f"{colors.YELLOW}Aborting CSP generation.{colors.ENDC}"
         )
-        print(warning_message)
+        print(error_message)
+        return # Terminate script execution if build folder is not found
 
     csp_prod = {
         'default-src': {"'self'"},
