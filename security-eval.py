@@ -6,12 +6,13 @@ from packaging.version import parse
 from packaging.specifiers import SpecifierSet
 
 class SecurityScanner:
-    def __init__(self, project_path):
+    def __init__(self, project_path, scan_modules=False):
         self.project_path = os.path.abspath(project_path)
         self.base_path_to_remove = self.project_path  # Use project directory itself as base
         self.dependencies = {}
         self.vulnerabilities = []
         self.risky_patterns = []
+        self.scan_modules = scan_modules
 
         # Known dangerous code patterns
         self.DANGEROUS_PATTERNS = {
@@ -48,15 +49,26 @@ class SecurityScanner:
 
 
     def analyze_code_patterns(self):
-        #Search for dangerous code patterns in node_modules
-        node_modules_path = os.path.join(self.project_path, 'node_modules')
-        if not os.path.exists(node_modules_path):
-            return
-            
-        for root, dirs, files in os.walk(node_modules_path):
-            for file in files:
-                if file.endswith(('.js', '.jsx')):
-                    self.scan_file(os.path.join(root, file))
+        if self.scan_modules:
+            #Search for dangerous code patterns in node_modules
+            node_modules_path = os.path.join(self.project_path, 'node_modules')
+            if not os.path.exists(node_modules_path):
+                return
+                
+            for root, dirs, files in os.walk(node_modules_path):
+                for file in files:
+                    if file.endswith(('.js', '.jsx', '.ts', '.tsx', '.html', '.vue')):
+                        self.scan_file(os.path.join(root, file))
+        else:
+            # Search for dangerous code patterns in project source files
+            for root, dirs, files in os.walk(self.project_path):
+                # Exclude node_modules and hidden directories
+                dirs[:] = [d for d in dirs if d not in ('node_modules',) and not d.startswith('.')]
+                
+                for file in files:
+                    if file.endswith(('.js', '.jsx', '.ts', '.tsx', '.html', '.vue')):
+                        self.scan_file(os.path.join(root, file))
+
 
     def scan_file(self, file_path):
         #Check files for dangerous patterns outside comments
@@ -196,13 +208,16 @@ def main():
         default='type',
         help='Sort report by vulnerability type or file location'
     )
-    
+    parser.add_argument(
+        '--scan-modules',
+        action='store_true',
+        help='Scan dependencies code instead of application\'s code'
+    )
     args = parser.parse_args()
     
     # Initialize scanner and process
-    scanner = SecurityScanner(args.project_path)
+    scanner = SecurityScanner(args.project_path, scan_modules=args.scan_modules)
     scanner.parse_dependencies()
-
     scanner.analyze_code_patterns()
     
     # Generate and display report
