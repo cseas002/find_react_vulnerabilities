@@ -27,10 +27,10 @@ function ExternalContent() {
 
         try {
             console.log('Main: Attempting to load external worker from https://cdn.example.com/another-worker.js');
-            const externalWorker = new Worker('https://cdn.example.com/another-worker.js');
-            externalWorker.postMessage("Hello External Worker");
+            const externalWorker = new Worker('/another-worker-local.js');
+            externalWorker.postMessage("Hello External Worker (now local)");
             externalWorker.onmessage = (e) => {
-                console.log('Main: Message received from external worker:', e.data);
+                console.log('Main: Message received from external worker (now local):', e.data);
                 externalWorker.terminate();
             };
             externalWorker.onerror = (e) => {
