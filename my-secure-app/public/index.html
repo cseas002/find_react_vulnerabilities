@@ -2,7 +2,14 @@
 <html lang="en">
 
 <head>
-  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-eval' cdn.example.com jsonplaceholder.typicode.com reactjs.org; style-src 'self' 'unsafe-inline' cdn.example.com jsonplaceholder.typicode.com reactjs.org; img-src 'self' data: fastly.picsum.photos fonts.gstatic.com picsum.photos www.example.com; font-src 'self' fonts.gstatic.com; connect-src 'self' cdn.example.com httpbin.org jsonplaceholder.typicode.com picsum.photos react.dev reactjs.org ws://localhost:3000 ws://localhost:3001 wss://localhost:3000 wss://localhost:3001 www.example.com www.w3.org; object-src www.example.com; frame-src cdn.example.com www.example.com; base-uri 'self'; form-action 'self' httpbin.org; manifest-src 'self' www.example.com; worker-src 'self' cdn.example.com;">
+
+
+
+
+
+
   <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#000000" />
@@ -16,7 +23,7 @@
 
   <!-- Added for CSP testing -->
   <link rel="manifest" href="https://www.example.com/app.webmanifest" />
-  <base href="https://api.example.org/" />
+
   <!-- End Added for CSP testing -->
 
   <!--

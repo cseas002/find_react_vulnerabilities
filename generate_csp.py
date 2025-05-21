@@ -64,21 +64,55 @@ def analyze_html_file(file_path, is_build_output=False):
         return sources, inline_style_files, inline_script_hashes
 
     print(f"Analyzing HTML file: {colors.BLUE}{file_path}{colors.ENDC}...")
+    detected_external_base_domain = None
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
+
+        # First pass: find <base href>
+        base_match = re.search(r"<base[^>]+href=['\"]([^'\"]+)['\"]", content, re.IGNORECASE)
+        if base_match:
+            base_href = base_match.group(1)
+            if is_url(base_href):
+                # Extract domain like scheme://host or scheme://host:port
+                domain_match = re.match(r'^(https?://[^/]+)', base_href)
+                if domain_match: # full domain with scheme
+                    full_base_origin = domain_match.group(1)
+                    # For CSP sources, we usually just need the hostname (or hostname:port)
+                    host_match = re.match(r'^https?://([^/:]+(?::\d+)?)', base_href)
+                    if host_match:
+                        detected_external_base_domain = host_match.group(1)
+                        sources['base-uri'].add(detected_external_base_domain) # Add to base-uri directive
+                        print(f"{colors.GREEN}Info:{colors.ENDC} Detected external base_href: {base_href}, domain for CSP: {detected_external_base_domain}")
+            # If base_href is relative, detected_external_base_domain remains None, 'self' will be used.
+            # Add 'self' to base-uri if no external domain was added, to maintain a default
+            if not sources['base-uri']:
+                 sources['base-uri'].add("'self'")
+        else:
+            # No base tag found, ensure 'self' is in base-uri as a default
+            sources['base-uri'].add("'self'")
 
         # Script tags
         for match in re.finditer(r"<script[^>]+src=['\"]([^'\"]+)['\"]", content):
             src = match.group(1)
             if is_url(src):
                 sources['script-src'].add(src.split('/')[2])
+            elif detected_external_base_domain and not src.startswith('data:') and not src.startswith('blob:'):
+                sources['script-src'].add(detected_external_base_domain)
+            elif not src.startswith('data:') and not src.startswith('blob:'): # Relative path, no external base
+                sources['script-src'].add("'self'")
         
         # Image tags
         for match in re.finditer(r"<img[^>]+src=['\"]([^'\"]+)['\"]", content):
             src = match.group(1)
             if is_url(src):
                 sources['img-src'].add(src.split('/')[2])
+            elif src.startswith('data:'):
+                sources['img-src'].add('data:')
+            elif detected_external_base_domain and not src.startswith('blob:'):
+                sources['img-src'].add(detected_external_base_domain)
+            elif not src.startswith('blob:'): # Relative path, no external base
+                sources['img-src'].add("'self'")
         
         # Inline script tags - basic detection for now
         if re.search(r'<script[^>]*>(?!\s*<!--)', content, re.IGNORECASE) and not re.search(r'<script[^>]+src=', content, re.IGNORECASE) :
@@ -89,25 +123,30 @@ def analyze_html_file(file_path, is_build_output=False):
             href = match.group(1)
             if is_url(href):
                 sources['style-src'].add(href.split('/')[2])
+            elif detected_external_base_domain:
+                sources['style-src'].add(detected_external_base_domain)
+            else: # Relative path, no external base
+                sources['style-src'].add("'self'")
         
         # Link tags for manifest
         for match in re.finditer(r"<link[^>]+rel=['\"]manifest['\"][^>]+href=['\"]([^'\"]+)['\"]", content):
             href = match.group(1)
             if is_url(href):
                  sources['manifest-src'].add(href.split('/')[2])
+            elif detected_external_base_domain:
+                 sources['manifest-src'].add(detected_external_base_domain)
             elif href.startswith('/') or (is_build_output and not href.startswith('%')):
                  sources['manifest-src'].add("'self'")
         
-        # Base tag
-        for match in re.finditer(r"<base[^>]+href=['\"]([^'\"]+)['\"]", content):
+        # Link tags for icons (e.g., favicon)
+        for match in re.finditer(r"<link[^>]+rel=['\"](?:icon|shortcut icon|apple-touch-icon)['\"][^>]+href=['\"]([^'\"]+)['\"]", content, re.IGNORECASE):
             href = match.group(1)
             if is_url(href):
-                # Extract domain or full origin for base-uri
-                # For base-uri, it's often just the origin (scheme://host:port)
-                # A simple split might be too naive if path is included, but CSP base-uri can be just a host.
-                # Let's add the host for now.
-                sources['base-uri'].add(href.split('/')[2]) 
-            # Not adding 'self' for base if local, as it's often implicit or more restrictive than needed.
+                sources['img-src'].add(href.split('/')[2]) # Icons are images
+            elif detected_external_base_domain and not href.startswith('data:'):
+                sources['img-src'].add(detected_external_base_domain)
+            elif not href.startswith('data:'): # Relative path, no external base
+                sources['img-src'].add("'self'")
 
         # Inline style tags
         if re.search(r'<style[^>]*>', content, re.IGNORECASE):
@@ -219,12 +258,18 @@ def analyze_bundled_js_css(build_path):
                     domain_match_for_generic = domain_pattern.search(current_url)
                     if domain_match_for_generic:
                         domain = domain_match_for_generic.group(1)
-                        detected_domains['connect-src'].add(domain)
+                        detected_domains['connect-src'].add(domain) # Always add to connect-src initially
+
+                        # Specific heuristic for picsum and its subdomains like fastly.picsum.photos
+                        if 'picsum.photos' in domain: # This will catch picsum.photos and subdomains
+                            detected_domains['img-src'].add(domain)
+
                         if any(kw in domain for kw in ['cdn', 'static', 'assets', 'js', 'google']):
                              detected_domains['script-src'].add(domain)
                              detected_domains['style-src'].add(domain)
-                        if current_url.lower().split('?')[0].endswith(image_extensions):
-                            detected_domains['img-src'].add(domain)
+                        # The image_extensions check is too narrow for services like Picsum, covered by heuristic above
+                        # if current_url.lower().split('?')[0].endswith(image_extensions):
+                        #     detected_domains['img-src'].add(domain)
                         if "example.com" in domain: 
                              detected_domains['frame-src'].add(domain)
         except Exception as e:
@@ -316,7 +361,7 @@ def generate_explanation_markdown(csp_config, explanations, project_path, inline
     markdown_lines.append("\n## Development Environment Considerations")
     markdown_lines.append("For local development, especially when using features like Hot Module Replacement (HMR) with tools like Create React App or Vite, you often need to adjust the CSP. The script also provided a specific 'Recommended CSP for Development' in the console output.")
     markdown_lines.append(f"- **`connect-src` for WebSockets:** Development servers use WebSockets for HMR. You'll likely need to add sources like `{' '.join(dev_specific_additions['connect-src'])}`. If your dev server runs on a custom port, adjust accordingly (e.g., `ws://localhost:YOUR_PORT`, `wss://localhost:YOUR_PORT`).")
-    markdown_lines.append(f"- **`script-src` for HMR:** Some development setups require `**'unsafe-eval'**` in `script-src` for HMR to function correctly. The development-focused CSP printed to the console includes this. **This is a significant security risk and `'unsafe-eval'` MUST be removed for production environments.**")
+    markdown_lines.append(f"- **`script-src` for HMR:** Some development setups require **`'unsafe-eval'`** in `script-src` for HMR to function correctly. The development-focused CSP printed to the console includes this. **This is a significant security risk and `'unsafe-eval'` MUST be removed for production environments.**")
     markdown_lines.append("Review the 'Recommended CSP for Development' provided in the console for a starting point that includes these development-specific directives.")
 
     markdown_lines.append("\n---")
@@ -328,7 +373,7 @@ def generate_explanation_markdown(csp_config, explanations, project_path, inline
     markdown_lines.append("- **Consider a `report-uri` or `report-to` directive:** This will instruct browsers to send reports of CSP violations to a specified endpoint, helping you identify and fix issues in a deployed application.")
     return "\n".join(markdown_lines)
 
-def generate_csp_for_cra(project_path):
+def generate_csp_for_cra(project_path, args, parser):
     print(f"\nStarting CSP generation for project: {colors.BLUE}{project_path}{colors.ENDC}")
     print("\nThis script analyzes 'public/index.html' and JavaScript/TypeScript files in 'src/' for patterns that might influence CSP.")
     print("It checks for external resource links, inline <style> tags in HTML, and JSX inline style props (style={{...}})." )
@@ -338,24 +383,25 @@ def generate_csp_for_cra(project_path):
     # Check for build directory
     build_dirs_to_check = {'build': 'npm run build / yarn build', 'dist': 'npm run build / yarn build (common for Vite)'}
     build_dir_found_path = None
+    build_analysis_performed = False # Default to False
 
     for dir_name, build_command_example in build_dirs_to_check.items():
         potential_build_dir = os.path.join(project_path, dir_name)
         if os.path.isdir(potential_build_dir):
             print(f"{colors.GREEN}Info:{colors.ENDC} Found production build directory: {colors.BLUE}{potential_build_dir}{colors.ENDC}. Prioritizing analysis of this directory.")
             build_dir_found_path = potential_build_dir
+            build_analysis_performed = True # Set to True if found
             break # Found one, no need to check others
 
-    if not build_dir_found_path:
-        error_message = (
-            f"{colors.RED}Error:{colors.ENDC} Production build directory ('build/' or 'dist/') not found in '{colors.BLUE}{project_path}{colors.ENDC}'.\n"
-            f"This script requires the production build to generate an accurate Content Security Policy for production.\n"
-            f"Please create the production build for your project (e.g., by running {colors.GREEN}npm run build{colors.ENDC} or {colors.GREEN}yarn build{colors.ENDC}) \n"
-            f"and then re-run this script.\n"
-            f"{colors.YELLOW}Aborting CSP generation.{colors.ENDC}"
+    if not build_analysis_performed: # Changed from if not build_dir_found_path
+        warning_message = (
+            f"{colors.YELLOW}Warning:{colors.ENDC} Production build directory ('build/' or 'dist/') not found in '{colors.BLUE}{project_path}{colors.ENDC}'.\n"
+            f"Analysis will proceed based on 'public/' and 'src/' directories for directives like style-src from JSX.\n"
+            f"The most comprehensive analysis (including bundled JS for script-src, img-src from JS, etc.) occurs when a build directory is present.\n"
+            f"For a more accurate {colors.GREEN}production-focused CSP{colors.ENDC}, create a build (e.g., {colors.GREEN}npm run build{colors.ENDC}) and re-run."
         )
-        print(error_message)
-        return # Terminate script execution if build folder is not found
+        print(warning_message)
+        # Removed the return statement; script will now proceed.
 
     csp_prod = {
         'default-src': {"'self'"},
@@ -426,15 +472,12 @@ def generate_csp_for_cra(project_path):
         'jsx_inline_styles': src_jsx_inline_styles
     }
 
-    build_analysis_performed = False
-    build_detected_domains = {}
     build_html_sources = {}
     build_html_inline_styles = set()
     build_html_inline_scripts = set()
 
-    if build_dir_found_path:
+    if build_analysis_performed: # Check the flag
         print(f"\n--- {colors.GREEN}Build Output Analysis ({build_dir_found_path}){colors.ENDC} ---")
-        build_analysis_performed = True
         build_index_html = os.path.join(build_dir_found_path, 'index.html')
         build_html_actual_sources, build_html_inline_styles_actual, _ = analyze_html_file(build_index_html, is_build_output=True)
 
@@ -480,6 +523,14 @@ def generate_csp_for_cra(project_path):
     else:
         print(f"{colors.GREEN}Info:{colors.ENDC} No direct inline styles or JSX style props detected that would necessitate 'unsafe-inline' for 'style-src'.")
     
+    # Post-processing for picsum.photos implications in img-src
+    if 'img-src' in csp_prod: # Ensure the key exists before trying to access
+        img_sources = csp_prod['img-src']
+        if 'picsum.photos' in img_sources:
+            img_sources.add('fastly.picsum.photos')
+        if 'fastly.picsum.photos' in img_sources: # Also ensure base is there if fastly was somehow added first
+            img_sources.add('picsum.photos')
+
     csp_prod_parts = []
     for directive, sources_set in csp_prod.items():
         if sources_set: csp_prod_parts.append(f"{directive} {' '.join(sorted(list(sources_set)))}")
@@ -521,12 +572,38 @@ def generate_csp_for_cra(project_path):
     print(f"- HMR might also require {colors.RED}`'unsafe-eval'`{colors.ENDC} in `script-src`. This is included in the development CSP above.")
     print(f"  {colors.RED}Warning:{colors.ENDC} `'unsafe-eval'` is a security risk and must be removed for production.")
 
-    markdown_content = generate_explanation_markdown(csp_prod, explanations, project_path, inline_style_details_for_md, build_analysis_performed, build_detected_domains, dev_specific_additions_for_md, final_csp_prod, final_csp_dev)
+    markdown_content = generate_explanation_markdown(csp_prod, explanations, project_path, inline_style_details_for_md, build_analysis_performed, build_detected_domains_from_js_css, dev_specific_additions_for_md, final_csp_prod, final_csp_dev)
     explanation_file_path = os.path.join(project_path, "CSP_Explanation.md")
     try:
         with open(explanation_file_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
         print(f"\nDetailed explanation of the {colors.GREEN}production-focused CSP{colors.ENDC} has been saved to: {colors.BLUE}{explanation_file_path}{colors.ENDC}")
+
+        # Add CSP_Explanation.md to .gitignore
+        gitignore_path = os.path.join(project_path, ".gitignore")
+        entry_to_add = "CSP_Explanation.md"
+        if os.path.exists(gitignore_path):
+            try:
+                with open(gitignore_path, 'r+', encoding='utf-8') as gf:
+                    content = gf.read()
+                    if not re.search(f"^{re.escape(entry_to_add)}(\s|$)", content, re.MULTILINE):
+                        gf.seek(0, 2) # Go to the end of the file
+                        if content and not content.endswith('\n'):
+                            gf.write('\n') # Add a newline if file not empty and doesn't end with one
+                        gf.write(f"{entry_to_add}\n")
+                        print(f"Added '{entry_to_add}' to {colors.BLUE}{gitignore_path}{colors.ENDC}")
+                    else:
+                        print(f"'{entry_to_add}' already in {colors.BLUE}{gitignore_path}{colors.ENDC}")
+            except Exception as e:
+                print(f"{colors.YELLOW}Warning:{colors.ENDC} Could not update {gitignore_path}: {e}")
+        else:
+            try:
+                with open(gitignore_path, 'w', encoding='utf-8') as gf:
+                    gf.write(f"{entry_to_add}\n")
+                print(f"Created {colors.BLUE}{gitignore_path}{colors.ENDC} and added '{entry_to_add}'.")
+            except Exception as e:
+                print(f"{colors.YELLOW}Warning:{colors.ENDC} Could not create {gitignore_path}: {e}")
+
     except Exception as e:
         print(f"{colors.RED}Error saving CSP explanation file: {e}{colors.ENDC}")
 
@@ -543,20 +620,130 @@ def generate_csp_for_cra(project_path):
     # if inline_style_detected: # This variable would need to be set based on analysis for csp_prod
     #     print(f"- {colors.YELLOW}Since 'unsafe-inline' was added for styles in the production CSP, check the `CSP_Explanation.md` file for details...{colors.ENDC}")
 
+    if args.add_csp:
+        selected_csp_content = final_csp_dev if args.csp_type == "development" else final_csp_prod
+        escaped_selected_csp_content = selected_csp_content.replace('"', '&quot;')
+        new_csp_meta_tag = f'<meta http-equiv="Content-Security-Policy" content="{escaped_selected_csp_content}">'
+
+        if not args.index_path:
+            # This check should ideally be in main() before calling generate_csp_for_cra,
+            # but for safety, and given parser is available here:
+            parser.error("--index-path must be specified when --add-csp is used and a default was not found or was invalid.")
+
+        try:
+            with open(args.index_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+
+            # Comment out existing CSP meta tags
+            # Regex to find <meta http-equiv="Content-Security-Policy" ...>
+            csp_meta_tag_pattern = re.compile(r'(<meta\s+http-equiv=(["\'])Content-Security-Policy\2[^>]*>)', re.IGNORECASE)
+            
+            modified_content = html_content
+            found_existing = False
+            for match in csp_meta_tag_pattern.finditer(html_content):
+                existing_tag = match.group(1)
+                if not existing_tag.strip().startswith("<!--"): # Avoid re-commenting or re-deleting
+                    if args.delete_old_csp:
+                        replacement_for_old_tag = "" # Delete the tag
+                        action_message = "Deleted existing CSP meta tag"
+                    else:
+                        replacement_for_old_tag = f"<!-- {existing_tag} -->" # Comment out
+                        action_message = "Commented out existing CSP meta tag"
+                    
+                    modified_content = modified_content.replace(existing_tag, replacement_for_old_tag)
+                    # If deleting, and the original tag was followed by a newline, that newline might remain.
+                    # This is often fine, but could be refined if precise line-count reduction is critical.
+                    print(f"{colors.YELLOW}Info:{colors.ENDC} {action_message} in {colors.BLUE}{args.index_path}{colors.ENDC}")
+                    found_existing = True
+            
+            if not found_existing:
+                print(f"{colors.GREEN}Info:{colors.ENDC} No existing CSP meta tag found to comment out in {colors.BLUE}{args.index_path}{colors.ENDC}")
+
+
+            # Find <head> tag and insert the new CSP meta tag after it
+            head_tag_pattern = re.compile(r'(<head[^>]*>)', re.IGNORECASE)
+            match = head_tag_pattern.search(modified_content)
+            if match:
+                head_end_pos = match.end(1)
+                # Insert the new CSP tag with a newline for better formatting
+                modified_content = modified_content[:head_end_pos] + f"\n    {new_csp_meta_tag}" + modified_content[head_end_pos:]
+                
+                with open(args.index_path, 'w', encoding='utf-8') as f:
+                    f.write(modified_content)
+                print(f"{colors.GREEN}Successfully added/updated CSP meta tag in {colors.BLUE}{args.index_path}{colors.ENDC} (inserted after <head>)")
+            else:
+                print(f"{colors.RED}Error:{colors.ENDC} Could not find <head> tag in {colors.BLUE}{args.index_path}{colors.ENDC}. CSP meta tag not added.")
+                print(f"{colors.YELLOW}Info:{colors.ENDC} If you intended to add it anyway, the tag would be: {new_csp_meta_tag}")
+
+        except FileNotFoundError:
+            # This case should also ideally be caught in main() when resolving index_path
+            parser.error(f"The specified HTML file '{args.index_path}' was not found.")
+        except Exception as e:
+            print(f"{colors.RED}Error:{colors.ENDC} Could not modify {args.index_path}: {e}")
+            print(f"{colors.YELLOW}Info:{colors.ENDC} The CSP meta tag to add manually would be: {new_csp_meta_tag}")
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate a Content Security Policy for a React project.",
+        description="Generate a Content Security Policy for a React project and optionally add it to an HTML file.",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("project_path", help="Path to the root of the React project (e.g., ./my-secure-app)")
+    
+    parser.add_argument("--add-csp", action="store_true", 
+                        help="Add the generated CSP as a <meta> tag to an HTML file.")
+    parser.add_argument("--index-path", type=str, default=None,
+                        help="Path to the HTML file to add the CSP to. \\n" \
+                             "If not absolute, path is relative to project_path. \\n" \
+                             "Defaults to 'public/index.html' or 'build/index.html' \\n" \
+                             "(checked in that order if --add-csp is set and this is not provided).")
+    parser.add_argument("--delete-old-csp", action="store_true",
+                        help="If --add-csp is used, delete any existing CSP meta tags instead of commenting them out.")
+    
+    csp_type_group = parser.add_mutually_exclusive_group()
+    csp_type_group.add_argument("--production", action="store_const", dest="csp_type", const="production",
+                                help="Use the production-focused CSP when adding to HTML (requires --add-csp).")
+    csp_type_group.add_argument("--development", action="store_const", dest="csp_type", const="development",
+                                help="Use the development-focused CSP when adding to HTML (requires --add-csp).")
+
     args = parser.parse_args()
 
     if not os.path.isdir(args.project_path):
-        print(f"Error: Project path '{args.project_path}' not found or is not a directory.")
+        print(f"{colors.RED}Error:{colors.ENDC} Project path '{args.project_path}' not found or is not a directory.")
         return
 
-    generate_csp_for_cra(args.project_path)
+    if args.add_csp:
+        if not args.csp_type:
+            parser.error("if --add-csp is specified, either --production or --development must also be specified.")
+        
+        if args.index_path:
+            if not os.path.isabs(args.index_path):
+                resolved_index_path = os.path.join(args.project_path, args.index_path)
+            else:
+                resolved_index_path = args.index_path
+        else:
+            default_paths_to_check = [
+                os.path.join(args.project_path, 'public', 'index.html'),
+                os.path.join(args.project_path, 'build', 'index.html'),
+                os.path.join(args.project_path, 'dist', 'index.html')
+            ]
+            resolved_index_path = None
+            for path_to_check in default_paths_to_check:
+                if os.path.exists(path_to_check):
+                    resolved_index_path = path_to_check
+                    print(f"{colors.BLUE}Info:{colors.ENDC} Using HTML file for CSP injection: {resolved_index_path}")
+                    break
+            if not resolved_index_path:
+                parser.error("--index-path was not specified, and default HTML files (public/index.html, build/index.html, or dist/index.html) were not found in the project path.")
+
+        if not os.path.isfile(resolved_index_path): # Check if it's a file
+            parser.error(f"The specified HTML path '{resolved_index_path}' is not a file or does not exist.")
+        args.index_path = resolved_index_path
+    elif args.index_path or args.csp_type:
+        parser.error("--index-path, --production, and --development arguments are only applicable if --add-csp is also specified.")
+    elif args.delete_old_csp and not args.add_csp:
+        parser.error("--delete-old-csp is only applicable if --add-csp is also specified.")
+
+    generate_csp_for_cra(args.project_path, args, parser)
 
 if __name__ == "__main__":
     main() 
