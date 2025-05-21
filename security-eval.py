@@ -12,24 +12,6 @@ class SecurityScanner:
         self.dependencies = {}
         self.vulnerabilities = []
         self.risky_patterns = []
-        
-        # MiniDB to include CVE's or other interesting vulnerabilities
-        self.VULN_DB = {
-            "lodash": {
-                "CVE-2021-23337": {
-                    "affected_versions": "<4.17.12",
-                    "severity": "high",
-                    "description": "Command Injection vulnerability in template"
-                }
-            },
-            "express": {
-                "CVE-2022-24999": {
-                    "affected_versions": "<4.17.3",
-                    "severity": "critical",
-                    "description": "Prototype pollution via mergeParams"
-                }
-            }
-        }
 
         # Known dangerous code patterns
         self.DANGEROUS_PATTERNS = {
@@ -64,22 +46,6 @@ class SecurityScanner:
             except Exception as e:
                 print(f"Error reading {pkg_json}: {e}")
 
-    def check_vulnerabilities(self):
-        #Check against built-in vulnerability database
-        for pkg, data in self.dependencies.items():
-            if pkg in self.VULN_DB:
-                installed_version = parse(data['version'])
-                for cve, details in self.VULN_DB[pkg].items():
-                    spec = SpecifierSet(details['affected_versions'])
-                    if installed_version in spec:
-                        self.vulnerabilities.append({
-                            'package': pkg,
-                            'version': data['version'],
-                            'cve': cve,
-                            'severity': details['severity'],
-                            'description': details['description'],
-                            'location': self.shorten_path(data['file'])
-                        })
 
     def analyze_code_patterns(self):
         #Search for dangerous code patterns in node_modules
@@ -236,7 +202,7 @@ def main():
     # Initialize scanner and process
     scanner = SecurityScanner(args.project_path)
     scanner.parse_dependencies()
-    scanner.check_vulnerabilities()
+
     scanner.analyze_code_patterns()
     
     # Generate and display report
