@@ -3,6 +3,7 @@ import json
 import re
 import argparse
 import requests
+from cvss import CVSS3
 from packaging.version import parse
 from packaging.specifiers import SpecifierSet
 
@@ -143,17 +144,44 @@ def normalize_osv_vulnerability(vuln):
     }
 
 def get_severity_from_cvss(severity_data):
-    """Extract severity from CVSS scores"""
+    """Extract severity from CVSS scores using both numerical scores and vectors"""
     for score in severity_data:
         if score['type'] == 'CVSS_V3':
-            cvss = float(score['score'])
-            if cvss >= 9.0:
-                return 'critical'
-            elif cvss >= 7.0:
-                return 'high'
-            elif cvss >= 4.0:
-                return 'medium'
-    return 'low'
+            score_value = score['score']
+            
+            # Handle CVSS vector strings
+            if score_value.startswith('CVSS'):
+                try:
+                    cvss = CVSS3(score_value)
+                    cvss_score = cvss.base_score
+                except Exception as e:
+                    print(f"Error parsing CVSS vector: {e}")
+                    continue
+                    
+                if cvss_score >= 9.0:
+                    return 'critical'
+                elif cvss_score >= 7.0:
+                    return 'high'
+                elif cvss_score >= 4.0:
+                    return 'medium'
+                else:
+                    return 'low'
+            
+            # Handle numerical scores
+            try:
+                cvss_score = float(score_value)
+                if cvss_score >= 9.0:
+                    return 'critical'
+                elif cvss_score >= 7.0:
+                    return 'high'
+                elif cvss_score >= 4.0:
+                    return 'medium'
+                else:
+                    return 'low'
+            except ValueError:
+                continue
+                
+    return 'medium'  # Default if no valid scores found
 
 def check_vulnerabilities(dependencies):
     """Check dependencies against both built-in DB and OSV"""
