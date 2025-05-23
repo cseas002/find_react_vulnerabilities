@@ -272,6 +272,7 @@ def main():
                     print(f"\nPackage: {vuln['package']}@{vuln['version']}")
                     print(f"CVE: {vuln['cve']}")
                     print(f"Description: {vuln['description']}")
+                    print(f"Learn More: https://osv.dev/vulnerability/{vuln['cve']}")
                     print("-" * 50)
 
 if __name__ == '__main__':

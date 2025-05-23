@@ -158,7 +158,7 @@ class SecurityScanner:
 
         # Build risky patterns section
         if risks_sorted:
-            report.append("\n⚠️  Dangerous Code Patterns Detected:")
+            report.append("\n🚨  Dangerous Code Patterns Detected:")
             current_group = None
             for pattern in risks_sorted:
                 # Determine grouping key based on sort type
@@ -226,7 +226,6 @@ def main():
     if not report:
         print("✅ No security issues found!")
     else:
-        print("🚨 Security Issues Found:")
         print(report)
     
     # Save SBOM if needed (optional)
