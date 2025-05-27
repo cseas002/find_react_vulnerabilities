@@ -99,7 +99,7 @@ The following external domains were detected in the bundled JavaScript/CSS files
 
 ## Development Environment Considerations
 For local development, especially when using features like Hot Module Replacement (HMR) with tools like Create React App or Vite, you often need to adjust the CSP. The script also provided a specific 'Recommended CSP for Development' in the console output.
-- **`connect-src` for WebSockets:** Development servers use WebSockets for HMR. You'll likely need to add sources like `wss://localhost:3000 ws://localhost:3001 wss://localhost:3001 ws://localhost:3000`. If your dev server runs on a custom port, adjust accordingly (e.g., `ws://localhost:YOUR_PORT`, `wss://localhost:YOUR_PORT`).
+- **`connect-src` for WebSockets:** Development servers use WebSockets for HMR. You'll likely need to add sources like `ws://localhost:3000 wss://localhost:3000 ws://localhost:3001 wss://localhost:3001`. If your dev server runs on a custom port, adjust accordingly (e.g., `ws://localhost:YOUR_PORT`, `wss://localhost:YOUR_PORT`).
 - **`script-src` for HMR:** Some development setups require **`'unsafe-eval'`** in `script-src` for HMR to function correctly. The development-focused CSP printed to the console includes this. **This is a significant security risk and `'unsafe-eval'` MUST be removed for production environments.**
 Review the 'Recommended CSP for Development' provided in the console for a starting point that includes these development-specific directives.
 
