@@ -475,6 +475,7 @@ def generate_csp_for_cra(project_path, args, parser):
     build_html_sources = {}
     build_html_inline_styles = set()
     build_html_inline_scripts = set()
+    build_detected_domains_from_js_css = {}
 
     if build_analysis_performed: # Check the flag
         print(f"\n--- {colors.GREEN}Build Output Analysis ({build_dir_found_path}){colors.ENDC} ---")
@@ -586,7 +587,7 @@ def generate_csp_for_cra(project_path, args, parser):
             try:
                 with open(gitignore_path, 'r+', encoding='utf-8') as gf:
                     content = gf.read()
-                    if not re.search(f"^{re.escape(entry_to_add)}(\s|$)", content, re.MULTILINE):
+                    if not re.search(rf"^{re.escape(entry_to_add)}(\s|$)", content, re.MULTILINE):
                         gf.seek(0, 2) # Go to the end of the file
                         if content and not content.endswith('\n'):
                             gf.write('\n') # Add a newline if file not empty and doesn't end with one
