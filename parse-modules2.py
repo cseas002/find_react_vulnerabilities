@@ -31,16 +31,16 @@ VULN_DB = {
 }
 
 def clean_version(version_str):
-    """Normalize version strings by removing non-numeric characters and ranges"""
+    #Normalize version strings by removing non-numeric characters and ranges
     if not version_str:
         return "unknown"
-    # Split on hyphen to remove prerelease versions (e.g., 1.2.3-beta)
+    #Split on hyphen to remove prerelease versions (e.g., 1.2.3-beta)
     version = version_str.split('-')[0]
     # Remove non-numeric/version characters
     return re.sub(r'[^0-9.]', '', version)
 
 def find_package_jsons(project_path):
-    """Find all package.json files excluding those in node_modules directories"""
+    #Find all package.json files excluding those in node_modules directories
     package_json_files = []
     for root, dirs, files in os.walk(project_path):
         if 'node_modules' in dirs:
@@ -50,7 +50,7 @@ def find_package_jsons(project_path):
     return package_json_files
 
 def get_dependencies_from_package_json(file_path):
-    """Extract dependencies with versions from a package.json file"""
+    #Extract dependencies with versions from a package.json file
     dependencies = {}
     try:
         with open(file_path, 'r') as f:
@@ -64,7 +64,7 @@ def get_dependencies_from_package_json(file_path):
     return dependencies
 
 def get_packages_from_node_modules(node_modules_path):
-    """Extract package names and versions from a node_modules directory"""
+    #Extract package names and versions from a node_modules directory
     packages = {}
     if not os.path.exists(node_modules_path):
         return packages
@@ -113,7 +113,7 @@ def get_packages_from_node_modules(node_modules_path):
     return packages
 
 def query_osv(package_name, package_version):
-    """Query OSV database for vulnerabilities in a specific package version"""
+    #Query OSV database for vulnerabilities in a specific package version
     url = "https://api.osv.dev/v1/query"
     payload = {
         "package": {
@@ -132,7 +132,7 @@ def query_osv(package_name, package_version):
         return []
 
 def normalize_osv_vulnerability(vuln):
-    """Convert OSV vulnerability format to our standard format"""
+    #Convert OSV vulnerability format to our standard format
     vuln_id = vuln.get('id', 'OSV-UNKNOWN')
     aliases = vuln.get('aliases', [])
     cves = [a for a in aliases if a.startswith('CVE-')]
@@ -144,7 +144,7 @@ def normalize_osv_vulnerability(vuln):
     }
 
 def get_severity_from_cvss(severity_data):
-    """Extract severity from CVSS scores using both numerical scores and vectors"""
+    #Extract severity from CVSS scores using both numerical scores and vectors
     for score in severity_data:
         if score['type'] == 'CVSS_V3':
             score_value = score['score']
@@ -184,7 +184,7 @@ def get_severity_from_cvss(severity_data):
     return 'medium'  # Default if no valid scores found
 
 def check_vulnerabilities(dependencies):
-    """Check dependencies against both built-in DB and OSV"""
+    #Check dependencies against both built-in DB and OSV
     vulnerabilities = []
     
     for package, version in dependencies.items():

@@ -15,8 +15,7 @@ usage: security-eval.py [-h] [--sort-by {type,file}] [project_path]
 Security Auditor for React Projects
 
 positional arguments:
-  project_path          Path to React project directory (default: /mnt/c/Users/trill/Documents/master/Year1/p4/Language base/project/Personal-
-                        Website-Template)
+  project_path          Path to React project directory (default: cwd)
 
 options:
   -h, --help            show this help message and exit
