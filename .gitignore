@@ -1,3 +1,7 @@
 test*
 .env
 *node_modules
+report.md
+node_modules/
+insecure-app/node_modules/
+vulnerability-scanner/node_modules/
