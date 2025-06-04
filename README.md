@@ -18,10 +18,10 @@ positional arguments:
   project_path          Path to React project directory (default: cwd)
 
 options:
-  -h, --help            show this help message and exit
-  --sort-by {type,file}
+ <br/> -h, --help            show this help message and exit
+ <br/> --sort-by {type,file}
                         Sort report by vulnerability type or file location (default: type)
-  --scan-modules        Scan dependencies code instead of application's code (default: False)
+ <br/> --scan-modules        Scan dependencies code instead of application's code (default: False)
   Take into account that this last option will make the runtime exceptionally greater! (unless you have few modules in your app)
 
 ## generate_csp.py
