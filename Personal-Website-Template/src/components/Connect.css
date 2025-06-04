@@ -1,0 +1,137 @@
+a {
+  all: unset;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+}
+
+.connect-logo {
+  all: unset;
+  height: 2rem;
+  width: 2rem;
+  margin: 0.5rem;
+}
+
+#linkedin:hover {
+  transition: transform 0.3s ease;
+  transform: scale(1.5);
+
+  svg {
+    fill: #0a66c2;
+  }
+}
+
+#github:hover {
+  background: #1d1e22;
+  transition: transform 0.3s ease;
+  transform: scale(1.5);
+  border-radius: 50%;
+
+  svg {
+    transition: transform 0.3s ease;
+    transform: scale(0.8);
+
+    #Dribbble-Light-Preview {
+      fill: #ffffff;
+    }
+  }
+}
+
+#resume {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-radius: 50%;
+  background: #6200ea;
+  max-width: 2rem;
+  overflow: hidden;
+  transition: max-width 0.5s ease, border-radius 0.1s ease;
+  color: white;
+}
+
+#resume svg {
+  flex-shrink: 0;
+  height: 65%;
+  width: auto;
+  fill: white;
+  transition: height 0.5s ease;
+}
+
+#resume .text {
+  opacity: 0;
+  visibility: hidden;
+  /*   margin: 0 0.3rem; */
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+  display: none;
+}
+
+#resume:hover {
+  max-width: 8rem;
+  /* Adjust this value to fit the text */
+  border-radius: 7px;
+  width: auto;
+
+  svg {
+    margin: 0 0.2rem;
+  }
+}
+
+#resume:active {
+  transition: transform 0.2s ease;
+  transform: scale(0.9);
+}
+
+#resume:hover .text {
+  opacity: 1;
+  visibility: visible;
+  display: block;
+  margin: 0 0.2rem;
+}
+
+#gmail {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50% !important;
+  background: #6200ea;
+  padding: 0;
+  scroll-behavior: smooth;
+}
+
+#gmail:hover {
+  transition: transform 0.3s ease;
+  transform: scale(1.5);
+  border: 1px solid #F1F1F1;
+
+  rect {
+    fill: white;
+  }
+
+}
+
+#gmail:hover #gmail-1 {
+  fill: #4285f4;
+}
+
+#gmail:hover #gmail-2 {
+  fill: #ea4335;
+}
+
+#gmail:hover #gmail-3 {
+  fill: #34a853;
+}
+
+#gmail:hover #gmail-4 {
+  fill: #c5221f;
+}
+
+#gmail:hover #gmail-5 {
+  fill: #fbbc04;
+}
+
+.connect-button:active {
+  transition: transform 0.2s ease;
+  transform: scale(1.25) !important;
+}

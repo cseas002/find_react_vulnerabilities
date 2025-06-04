@@ -1,0 +1,93 @@
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Montserrat', sans-serif;
+}
+
+.section {
+  padding: 3rem 0.2rem;
+  width: 100%;
+  box-shadow: 0 0 1.4rem #eee;
+}
+
+.App {
+  text-align: center;
+  font-family: 'Roboto', sans-serif;
+}
+
+.home {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f5f5;
+  padding-bottom: 8rem;
+  flex-direction: column;
+}
+
+.home-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.summary {
+  flex: 1;
+  padding: 20px;
+}
+.summary-content {
+  width: 80%;
+  max-width: 40rem;
+
+  p {
+    max-width: 27rem;
+    margin: 2rem auto;
+    text-align: justify;
+  }
+  
+}
+
+
+.resume-button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin-top: 20px;
+  background-color: #6200ea;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 5px;
+}
+
+.resume-button:hover {
+  background-color: #3700b3;
+}
+align-center {
+  display: flex;
+  justify-content: center;
+  justify-items: center;
+}
+.align-left {
+  display: flex;
+  justify-content: left;
+  justify-items: left;
+}
+.align-right {
+  display: flex;
+  justify-content: right;
+  justify-items: right;
+}
+
+@media (max-width: 768px) {
+  .home-content {
+    flex-direction: column;
+  }
+
+  .summary {
+    padding: 0;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .animation {
+    margin-top: 2.5rem;
+  }
+}

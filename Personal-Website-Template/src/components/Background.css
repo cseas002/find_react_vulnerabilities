@@ -1,0 +1,225 @@
+.background {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #6200ea;
+    padding-top: 4rem;
+    position: relative;
+}
+.background-marker {
+    position: absolute;
+    top: -1rem;
+}
+.background-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 1200px;
+    flex-direction: column;
+}
+
+.background-nav {
+    display: flex;
+    justify-content: center;
+    width: fit-content;
+    padding: 0.5rem 1rem;
+    background-color: #6200ea;
+    gap: 0.5rem;
+
+    button {
+        all: unset;
+        padding: 0.5rem;
+        color: white;
+        border: 0.2rem solid white;
+        border-radius: 0.3rem;
+        margin: 0.1rem;
+    }
+}
+.background-nav .selected {
+    transform: scale(1.2);
+}
+
+.background-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    flex-direction: row;
+}
+.background-view {
+    display: flex;
+    flex: 2;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 3rem;
+}
+.background-animation {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    padding-bottom: 3rem;
+}
+
+
+
+.timeline {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin: 2rem 0;
+    width: 100%;
+    height: 35rem;
+    background-color: #6200ea;
+}
+
+.timeline-container {
+    width: 100%;
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.timeline-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    color: white;
+    position: relative;
+}
+
+.timeline-left {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.timeline-left .timeline-content {
+    align-items: flex-end;
+    text-align: right;
+    padding-left: 0;
+}
+
+.timeline-left .active::after {
+    content: "";
+    width: 2rem;
+    height: 2rem;
+    background-image: url('./images/icon/left.svg');
+    background-size: cover;
+    background-repeat: no-repeat;
+
+    /* width: 1rem;
+    height: 1rem;
+    background-color: white;
+    border-radius: 50%; */
+
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-90%);
+}
+
+.timeline-right {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+}
+
+.timeline-right .timeline-content {
+    align-items: flex-start;
+    text-align: left;
+    padding-right: 0;
+}
+
+.timeline-right .active::after {
+    content: "";
+    width: 2rem;
+    height: 2rem;
+    background-image: url('./images/icon/right.svg');
+    /* Replace with your image path */
+    background-size: cover;
+    /* Adjust background size as needed */
+    background-repeat: no-repeat;
+
+    /* width: 1rem;
+    height: 1rem;
+    background-color: white;
+    border-radius: 50%; */
+
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-10%);
+}
+
+.timeline-content {
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    padding: 0 2rem 2rem;
+
+}
+
+.timneline-spine {
+    width: 0;
+    height: 90%;
+    border: 0.2rem solid white;
+    border-radius: 0.5rem;
+    top: 0;
+    right: 50%;
+    position: relative;
+    box-sizing: border-box;
+    /* transform: translateX(-0.1rem); */
+}
+
+.timeline-heading {
+    margin: 0;
+}
+
+.timeline-subheading {
+    font-family: 'Montserrat', sans-serif;
+    margin: 0.1rem 0;
+    color: whitesmoke;
+
+}
+
+.timeline-duration {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.9rem;
+    margin: 0;
+    color: whitesmoke;
+}
+
+.timeline-detail {
+    margin: 0.4rem 0;
+
+}
+
+@media (max-width: 768px) {
+    .background-content {
+      flex-direction: column;
+    }
+}
+@media (max-width: 468px) {
+    .timeline {
+      height: 46rem;
+    }
+    .background-view {
+        padding-bottom: 5rem;
+    }
+    .timeline-row {
+      transform: translateY(-0.5rem) scale(0.8);
+    }
+    #experience .timeline-row {
+      transform: translateY(-1.2rem) scale(0.8);
+    }
+    .timeline-right .active::after {
+      transform: translateX(-10%) translateY(-1rem);
+    }
+    .timeline-left .active::after {
+      transform: translateX(-90%) translateY(-1rem);
+    }
+}
