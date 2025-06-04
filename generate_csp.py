@@ -119,15 +119,22 @@ def analyze_html_file(file_path, is_build_output=False):
              print(f"{colors.YELLOW}Info:{colors.ENDC} Inline <script> tag content detected in {colors.BLUE}{file_path}{colors.ENDC}. For a strict CSP, this would require 'unsafe-inline' (not recommended), or preferably hashes/nonces for 'script-src'.")
 
         # Link tags for stylesheets
-        for match in re.finditer(r"<link[^>]+rel=['\"]stylesheet['\"][^>]+href=['\"]([^'\"]+)['\"]", content):
-            href = match.group(1)
-            if is_url(href):
-                sources['style-src'].add(href.split('/')[2])
-            elif detected_external_base_domain:
-                sources['style-src'].add(detected_external_base_domain)
-            else: # Relative path, no external base
-                sources['style-src'].add("'self'")
-        
+        for match in re.finditer(r"<link[^>]+(?:rel=['\"]stylesheet['\"][^>]+href=['\"]|href=['\"][^>]+rel=['\"]stylesheet['\"])[^>]*>", content, re.IGNORECASE):
+            link_tag = match.group(0)
+            href_match = re.search(r'href=[\'"]([^\'"]+)[\'"]', link_tag)
+            if href_match:
+                href = href_match.group(1)
+                if is_url(href):
+                    domain = href.split('/')[2]
+                    sources['style-src'].add(domain)
+                    # If it's a Google Fonts stylesheet, also add fonts.gstatic.com to font-src
+                    if 'fonts.googleapis.com' in domain:
+                        sources['font-src'].add('fonts.gstatic.com')
+                elif detected_external_base_domain:
+                    sources['style-src'].add(detected_external_base_domain)
+                else: # Relative path, no external base
+                    sources['style-src'].add("'self'")
+
         # Link tags for manifest
         for match in re.finditer(r"<link[^>]+rel=['\"]manifest['\"][^>]+href=['\"]([^'\"]+)['\"]", content):
             href = match.group(1)
@@ -152,6 +159,17 @@ def analyze_html_file(file_path, is_build_output=False):
         if re.search(r'<style[^>]*>', content, re.IGNORECASE):
             print(f"{colors.YELLOW}Info:{colors.ENDC} Inline <style> tag found in {colors.BLUE}{file_path}{colors.ENDC}.")
             inline_style_files.add(file_path)
+
+        # Frame sources (iframe, frame)
+        for match in re.finditer(r"<(?:iframe|frame)[^>]+src=['\"]([^'\"]+)['\"]", content, re.IGNORECASE):
+            src = match.group(1)
+            if is_url(src):
+                domain = src.split('/')[2]
+                sources['frame-src'].add(domain)
+            elif detected_external_base_domain:
+                sources['frame-src'].add(detected_external_base_domain)
+            else: # Relative path, no external base
+                sources['frame-src'].add("'self'")
 
     except Exception as e:
         print(f"{colors.RED}Error reading or parsing HTML file {file_path}: {e}{colors.ENDC}")
@@ -406,12 +424,12 @@ def generate_csp_for_cra(project_path, args, parser):
     csp_prod = {
         'default-src': {"'self'"},
         'script-src': {"'self'"},
-        'style-src': {"'self'"},
+        'style-src': {"'self'", "'unsafe-inline'", "fonts.googleapis.com"},
         'img-src': {"'self'", 'data:'},
-        'font-src': {"'self'"},
+        'font-src': {"'self'", "fonts.gstatic.com"},
         'connect-src': {"'self'"},
         'object-src': {"'none'"},
-        'frame-src': {"'none'"},
+        'frame-src': {"'self'", "www.google.com"},
         'base-uri': {"'self'"},
         'form-action': {"'self'"},
         'manifest-src': {"'self'"},
@@ -425,7 +443,7 @@ def generate_csp_for_cra(project_path, args, parser):
         'font-src': "Specifies valid sources for fonts. `'self'` for local fonts.",
         'connect-src': "Restricts URLs for `fetch`, `XHR`, `WebSocket`. `'self'` for same-origin API calls.",
         'object-src': "Restricts sources for `<object>`, `<embed>`, `<applet>`. `'none'` blocks them entirely, enhancing security.",
-        'frame-src': "Restricts URLs that can be embedded as frames. `'none'` blocks all framing by default.",
+        'frame-src': "Restricts URLs that can be embedded as frames. `'self'` allows Google frames.",
         'base-uri': "Restricts the URLs which can be used in a document's `<base>` element. `'self'` prevents attacks that change base URLs.",
         'form-action': "Restricts the URLs which can be used as the target of a form submissions. `'self'` allows forms to submit only to the same origin.",
         'manifest-src': "Specifies valid sources for web app manifests. `'self'` allows manifests from the same origin.",
