@@ -22,7 +22,7 @@ class SecurityScanner:
             'shell_command': r'child_process\.exec\s*\(',
             'function_constructor': r'new\s+Function\s*\(',
             'unescaped_output': r'ReactDOM\.renderToString\s*\(',
-            'link_vulnerable_MITM': r'\b(?!https?://)http://'
+            'link_vulnerable_MITM': r'\bhttp://(?!s://)'
         }
 
     def parse_dependencies(self):
