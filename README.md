@@ -44,17 +44,19 @@ positional arguments:
   project_path          Path to the root of the React project (e.g., ./my-react-app)
 
 options:
-  -h, --help            show this help message and exit
+  -h, --help            show this help message and exit <br/>
   --add-csp             Add the generated CSP as a <meta> tag to an HTML file.
-                        If this is used, either --production or --development must be specified.
+                        If this is used, either --production or --development must be specified. <br/>
   --index-path INDEX_PATH
                         Path to the HTML file to add the CSP to.
                         If not absolute, path is relative to project_path.
                         Defaults to 'public/index.html', then 'build/index.html', then 'dist/index.html'
                         (checked in that order if --add-csp is set and this is not provided).
-                        Only applicable if --add-csp is specified.
-  --production          Use the production-focused CSP when adding to HTML (requires --add-csp).
-  --development         Use the development-focused CSP when adding to HTML (requires --add-csp).
+                        Only applicable if --add-csp is specified. <br/>
+  --delete-old-csp      If --add-csp is used, delete any existing CSP meta tags instead of commenting them out.
+                        Only applicable if --add-csp is specified. <br/>
+  --production          Use the production-focused CSP when adding to HTML (requires --add-csp). <br/>
+  --development         Use the development-focused CSP when adding to HTML (requires --add-csp). <br/>
 
 Example Usage:
 
@@ -72,4 +74,9 @@ Example Usage:
 3.  **Generate CSP and automatically add the development CSP to `public/index.html`:**
     ```bash
     python generate_csp.py ./my-react-app --add-csp --development --index-path public/index.html
+    ```
+
+4.  **Generate CSP and replace (instead of commenting out) any existing CSP tags:**
+    ```bash
+    python generate_csp.py ./my-react-app --add-csp --production --index-path build/index.html --delete-old-csp
     ```
