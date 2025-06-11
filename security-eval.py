@@ -8,13 +8,13 @@ from packaging.specifiers import SpecifierSet
 class SecurityScanner:
     def __init__(self, project_path, scan_modules=False):
         self.project_path = os.path.abspath(project_path)
-        self.base_path_to_remove = self.project_path  # Use project directory itself as base
+        self.base_path_to_remove = self.project_path  #use project directory itself as base
         self.dependencies = {}
         self.vulnerabilities = []
         self.risky_patterns = []
         self.scan_modules = scan_modules
 
-        # Known dangerous code patterns
+        #List of known dangerous code patterns (can be expanded)
         self.DANGEROUS_PATTERNS = {
             'eval': r'\beval\s*\(',
             'innerHTML': r'\.innerHTML\s*=',
@@ -26,7 +26,7 @@ class SecurityScanner:
         }
 
     def parse_dependencies(self):
-        #Extract dependencies from package.json files
+        #extract dependencies from package.json files
         package_jsons = []
         for root, dirs, files in os.walk(self.project_path):
             if 'node_modules' in dirs:
@@ -51,7 +51,7 @@ class SecurityScanner:
 
     def analyze_code_patterns(self):
         if self.scan_modules:
-            #Search for dangerous code patterns in node_modules
+            #search for dangerous code patterns in node_modules
             node_modules_path = os.path.join(self.project_path, 'node_modules')
             if not os.path.exists(node_modules_path):
                 return
@@ -61,9 +61,9 @@ class SecurityScanner:
                     if file.endswith(('.js', '.jsx', '.ts', '.tsx', '.html', '.vue')):
                         self.scan_file(os.path.join(root, file))
         else:
-            # Search for dangerous code patterns in project source files
+            #search for dangerous code patterns in project source files
             for root, dirs, files in os.walk(self.project_path):
-                # Exclude node_modules and hidden directories
+                #exclude node_modules and hidden directories
                 dirs[:] = [d for d in dirs if d not in ('node_modules',) and not d.startswith('.')]
                 
                 for file in files:
@@ -72,15 +72,15 @@ class SecurityScanner:
 
 
     def scan_file(self, file_path):
-        #Check files for dangerous patterns outside comments
+        #check files for dangerous patterns outside comments
         try:
             with open(file_path, 'r', errors='ignore') as f:
                 content = f.read()
                 
-                # Find all comments in the file
+                #find all comments
                 comment_spans = self.find_comments(content)
                 
-                # Check for dangerous patterns
+                #check for dangerous patterns
                 for pattern_name, regex in self.DANGEROUS_PATTERNS.items():
                     for match in re.finditer(regex, content):
                         if not self.is_in_comment(match.start(), comment_spans):
@@ -92,12 +92,12 @@ class SecurityScanner:
         except Exception as e:
             pass
 
-    #Change made after seeing that most of the dangerous patterns were called inside comments
+    #change made after seeing that most of the dangerous patterns were called inside comments
     def find_comments(self, content):
-        #Identify all comment spans in the content
+        #identify all comment spans in the content
         comment_spans = []
         
-        # Match single-line comments (//...) and multi-line comments (/*...*/)
+        #match single-line comments (//...) and multi-line comments (/*...*/)
         comment_pattern = re.compile(
             r'(//.*?$|/\*.*?\*/)',
             re.DOTALL | re.MULTILINE
@@ -110,14 +110,14 @@ class SecurityScanner:
         return comment_spans
 
     def is_in_comment(self, position, comment_spans):
-        #Check if a position is within any comment span
+        #check if a position is within any comment span
         for start, end in comment_spans:
             if start <= position <= end:
                 return True
         return False
 
     def get_context(self, content, position, context=50):
-        #Extract context around a matched pattern
+        #extract context around a matched pattern
         start = max(0, position - context)
         end = min(len(content), position + context)
         return content[start:end].strip()
@@ -126,7 +126,7 @@ class SecurityScanner:
         """Generate formatted security report with sorting options"""
         report = []
         
-        # Sort vulnerabilities
+        #sort vulnerabilities
         if sort_by == 'type':
             vulns_sorted = sorted(self.vulnerabilities, 
                                 key=lambda x: (x['severity'], x['package']))
@@ -134,7 +134,7 @@ class SecurityScanner:
             vulns_sorted = sorted(self.vulnerabilities, 
                                 key=lambda x: x['location'])
 
-        # Sort risky patterns
+        #sort risky patterns
         if sort_by == 'type':
             risks_sorted = sorted(self.risky_patterns,
                                 key=lambda x: (x['pattern'], x['file']))
@@ -142,7 +142,7 @@ class SecurityScanner:
             risks_sorted = sorted(self.risky_patterns,
                                 key=lambda x: x['file'])
 
-        # Build vulnerabilities section
+        #build vulnerabilities section
         if vulns_sorted:
             report.append("\n🔴 Known Vulnerabilities:")
             current_group = None
@@ -157,12 +157,12 @@ class SecurityScanner:
                     f"  Location: {vuln['location']}"
                 )
 
-        # Build risky patterns section
+        #build risky patterns section
         if risks_sorted:
             report.append("\n🚨  Dangerous Code Patterns Detected:")
             current_group = None
             for pattern in risks_sorted:
-                # Determine grouping key based on sort type
+                #determine grouping key based on sort type
                 if sort_by == 'type':
                     group_key = pattern['pattern']
                     item_text = f"  - File: {pattern['file']}\n  Context: {pattern['context']}"
@@ -170,7 +170,7 @@ class SecurityScanner:
                     group_key = pattern['file']
                     item_text = f"- {pattern['pattern']}\n  Context: {pattern['context']}"
 
-                # Add group header if needed
+                #add group header if needed
                 if group_key != current_group:
                     current_group = group_key
                     report.append(f"\n=== {current_group} ===")
@@ -181,18 +181,18 @@ class SecurityScanner:
 
     
     def clean_version(self, version_str):
-        #Normalize version strings
+        #normalize version strings
         return re.sub(r'[^0-9.]', '', version_str.split('-')[0])
 
     def shorten_path(self, full_path):
-        #Remove the base path from file paths in output
+        #remove the base path from file paths in output
         try:
             return os.path.relpath(full_path, self.base_path_to_remove)
         except ValueError:
             return full_path
 
 def main():
-    # Set up command line arguments
+    #set up command line arguments
     parser = argparse.ArgumentParser(
         description='Security Auditor for React Projects',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -216,12 +216,12 @@ def main():
     )
     args = parser.parse_args()
     
-    # Initialize scanner and process
+    #init scanner and process
     scanner = SecurityScanner(args.project_path, scan_modules=args.scan_modules)
     scanner.parse_dependencies()
     scanner.analyze_code_patterns()
     
-    # Generate and display report
+    #generate and display report
     report = scanner.generate_report(sort_by=args.sort_by)
     
     if not report:
@@ -229,7 +229,7 @@ def main():
     else:
         print(report)
     
-    # Save SBOM if needed (optional)
+    #save SBOM if needed (for faster exec)
     # with open('sbom.json', 'w') as f:
     #     json.dump(scanner.generate_sbom(), f, indent=2)
 

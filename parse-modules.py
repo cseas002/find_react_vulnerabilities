@@ -7,7 +7,7 @@ from cvss import CVSS3
 from packaging.version import parse
 from packaging.specifiers import SpecifierSet
 
-# Built-in vulnerability database
+#built-in vulnerability database
 VULN_DB = {
     "lodash": {
         "CVE-2021-23337": {
@@ -27,21 +27,22 @@ VULN_DB = {
             "severity": "critical",
             "description": "Prototype pollution via mergeParams"
         }
-    }
+    }#this DB can be expanded without any issues
 }
 
 def clean_version(version_str):
-    #Normalize version strings by removing non-numeric characters and ranges
+    #Normalize version strings (remove non-numeric characters and ranges)
     if not version_str:
         return "unknown"
-    #Split on hyphen to remove prerelease versions (e.g., 1.2.3-beta)
+    #we split on hyphen to remove prerelease versions (such as 1.2.3-beta)
     version = version_str.split('-')[0]
-    # Remove non-numeric/version characters
+    #finally we remove non-numeric/version characters
     return re.sub(r'[^0-9.]', '', version)
 
 def find_package_jsons(project_path):
-    #Find all package.json files excluding those in node_modules directories
+    #find all package.json files excluding those in node_modules directories
     package_json_files = []
+    
     for root, dirs, files in os.walk(project_path):
         if 'node_modules' in dirs:
             dirs.remove('node_modules')
@@ -50,8 +51,9 @@ def find_package_jsons(project_path):
     return package_json_files
 
 def get_dependencies_from_package_json(file_path):
-    #Extract dependencies with versions from a package.json file
+    #extract dependencies with versions from package.json file
     dependencies = {}
+
     try:
         with open(file_path, 'r') as f:
             data = json.load(f)
@@ -64,8 +66,9 @@ def get_dependencies_from_package_json(file_path):
     return dependencies
 
 def get_packages_from_node_modules(node_modules_path):
-    #Extract package names and versions from a node_modules directory
+    #extract package names and versions from a node_modules directory
     packages = {}
+
     if not os.path.exists(node_modules_path):
         return packages
     
@@ -113,7 +116,7 @@ def get_packages_from_node_modules(node_modules_path):
     return packages
 
 def query_osv(package_name, package_version):
-    #Query OSV database for vulnerabilities in a specific package version
+    #query OSV database for vulnerabilities in a specific package version
     url = "https://api.osv.dev/v1/query"
     payload = {
         "package": {
@@ -132,7 +135,7 @@ def query_osv(package_name, package_version):
         return []
 
 def normalize_osv_vulnerability(vuln):
-    #Convert OSV vulnerability format to our standard format
+    #convert OSV vulnerability format to our standard format
     vuln_id = vuln.get('id', 'OSV-UNKNOWN')
     aliases = vuln.get('aliases', [])
     cves = [a for a in aliases if a.startswith('CVE-')]
@@ -144,12 +147,12 @@ def normalize_osv_vulnerability(vuln):
     }
 
 def get_severity_from_cvss(severity_data):
-    #Extract severity from CVSS scores using both numerical scores and vectors
+    #get severity from CVSS scores using both numerical scores and vectors
     for score in severity_data:
         if score['type'] == 'CVSS_V3':
             score_value = score['score']
             
-            # Handle CVSS vector strings
+            #handle CVSS vector strings
             if score_value.startswith('CVSS'):
                 try:
                     cvss = CVSS3(score_value)
@@ -167,7 +170,7 @@ def get_severity_from_cvss(severity_data):
                 else:
                     return 'low'
             
-            # Handle numerical scores
+            #haandle numerical scores
             try:
                 cvss_score = float(score_value)
                 if cvss_score >= 9.0:
@@ -181,14 +184,14 @@ def get_severity_from_cvss(severity_data):
             except ValueError:
                 continue
                 
-    return 'medium'  # Default if no valid scores found
+    return 'medium'  #if no valid scores found we set medium as default
 
 def check_vulnerabilities(dependencies):
-    #Check dependencies against both built-in DB and OSV
+    #check dependencies against both built-in DB and OSV
     vulnerabilities = []
     
     for package, version in dependencies.items():
-        # Check built-in vulnerability database
+        #check built-in vulnerability database
         if package in VULN_DB:
             for cve_id, details in VULN_DB[package].items():
                 try:
@@ -203,12 +206,12 @@ def check_vulnerabilities(dependencies):
                 except Exception as e:
                     print(f"Error checking {package} version {version}: {e}")
         
-        # Check OSV database
+        #check OSV database
         try:
             osv_vulns = query_osv(package, version)
             for vuln in osv_vulns:
                 norm_vuln = normalize_osv_vulnerability(vuln)
-                # Avoid duplicate entries
+                #avoid duplicate entries
                 if not any(v['cve'] == norm_vuln['id'] for v in vulnerabilities):
                     vulnerabilities.append({
                         'package': package,
@@ -227,28 +230,27 @@ def main():
     parser.add_argument('project_path', type=str, nargs='?', default=os.getcwd(),
                        help='Path to the React project directory (default: current directory)')
     args = parser.parse_args()
-
     project_path = os.path.abspath(args.project_path)
     
-    # Collect declared dependencies from package.json files
+    #collect declared dependencies from package.json files
     declared_deps = {}
     package_json_files = find_package_jsons(project_path)
     for pkg_json in package_json_files:
         declared_deps.update(get_dependencies_from_package_json(pkg_json))
 
-    # Collect installed dependencies from node_modules
+    #collect installed dependencies from node_modules
     installed_deps = {}
     node_modules_dirs = [os.path.join(project_path, 'node_modules')]  # Check primary node_modules
     for nm_dir in node_modules_dirs:
         installed_deps.update(get_packages_from_node_modules(nm_dir))
 
-    # Combine dependencies with installed versions taking precedence
+    #combine dependencies with installed versions taking precedence
     all_dependencies = {**declared_deps, **installed_deps}
 
-    # Check for vulnerabilities
+    #check for vulnerabilities
     vulnerabilities = check_vulnerabilities(all_dependencies)
 
-    # Print results
+    #results
     print(f"\nFound {len(all_dependencies)} packages:")
     print("=" * 50)
     for pkg, ver in sorted(all_dependencies.items()):
@@ -259,12 +261,12 @@ def main():
     if not vulnerabilities:
         print("✅ No vulnerabilities found!")
     else:
-        # Group by severity
+        #group by severity
         vuln_by_severity = {}
         for vuln in vulnerabilities:
             vuln_by_severity.setdefault(vuln['severity'], []).append(vuln)
         
-        # Print in order of severity
+        #print in order (severity)
         for severity in ['critical', 'high', 'medium', 'low']:
             if severity in vuln_by_severity:
                 print(f"\n🔴 {severity.upper()} SEVERITY:")
